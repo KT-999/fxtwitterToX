@@ -33,3 +33,4 @@ browser.runtime.onMessage.addListener((message) => {
         browser.storage.local.set({ enabled: isEnabled });
     }
 });
+
