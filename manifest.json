@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "FX to X Redirect",
+  "version": "1.0",
+  "description": "Automatically redirects fxtwitter.com URLs to x.com, with a toggle button.",
+  "permissions": [
+    "storage",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "*://fxtwitter.com/*"
+  ],
+  "icons": {
+    "48": "icon/icon-48.png",
+    "128": "icon/icon-128.png"
+  },
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "action": {
+    "default_icon": {
+      "48": "icon/icon-48.png"
+    },
+    "default_popup": "popup/popup.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "fx-to-x-redirect@example.com"
+    }
+  }
+}
