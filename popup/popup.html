@@ -3,23 +3,56 @@
 
 <head>
     <meta charset="utf-8">
-    <title>FX to X Redirect</title>
+    <title>複合功能小幫手</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="popup.css">
-    <!-- 引入 Google 字體 -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&display=swap" rel="stylesheet">
 </head>
 
 <body>
     <div class="container">
-        <h1 class="title">FX to X</h1>
-        <div class="control-row">
-            <span id="statusText" class="status-text on">ON</span>
-            <label class="toggle-switch">
-                <input type="checkbox" id="toggleSwitch" checked>
-                <span class="slider"></span>
-            </label>
+        <div class="header">
+            <h1 class="title">複合功能小幫手</h1>
+        </div>
+        <div class="feature-list" id="featureList">
+            <!-- FX/VX Twitter 功能 -->
+            <div class="feature-item">
+                <div class="feature-info">
+                    <h2 class="feature-title">FX/VX Twitter 轉址</h2>
+                    <p class="feature-desc">自動將 fxtwitter.com 等連結轉址並修正頁面連結。</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-fxtwitter">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- YouTube 功能 -->
+            <div class="feature-item-group">
+                <div class="feature-item">
+                    <div class="feature-info">
+                        <h2 class="feature-title">YouTube 純音訊模式</h2>
+                        <p class="feature-desc">觀看 YouTube 時，僅載入聲音以節省資源。</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-youtubeAudioOnly">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <!-- 新增：顯示模式選項 -->
+                <div class="feature-options hidden" id="youtube-display-options">
+                    <label class="radio-label">
+                        <input type="radio" name="youtube-display" value="text"> 顯示文字
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="youtube-display" value="thumbnail"> 顯示封面
+                    </label>
+                </div>
+            </div>
+        </div>
+        <!-- 流量顯示區塊 -->
+        <div class="data-usage-section">
+            <h2 class="data-usage-title">目前分頁已用流量</h2>
+            <p id="data-usage-display" class="data-usage-value">計算中...</p>
         </div>
     </div>
     <script src="popup.js"></script>

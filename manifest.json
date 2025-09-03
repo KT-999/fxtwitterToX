@@ -1,14 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "FX to X Redirect",
-  "version": "1.0",
-  "description": "Automatically redirects fxtwitter.com URLs to x.com, with a toggle button.",
+  "name": "複合功能小幫手",
+  "version": "1.5",
+  "description": "整合多種自用功能的瀏覽器擴充套件。",
   "permissions": [
     "storage",
-    "webNavigation"
+    "webNavigation",
+    "declarativeNetRequest",
+    "webRequest",
+    "tabs"
   ],
   "host_permissions": [
-    "*://fxtwitter.com/*"
+    "<all_urls>"
   ],
   "icons": {
     "48": "icon/icon-48.png",
@@ -42,4 +45,3 @@
     }
   }
 }
-

@@ -1,66 +1,80 @@
-/* --- 重置基本樣式 --- */
 body {
-    width: 200px;
-    /* 縮小寬度以適應簡潔設計 */
-    height: auto;
+    width: 300px;
+    font-family: 'Inter', sans-serif;
+    background-color: #f0f2f5;
     margin: 0;
-    font-family: 'Inter', 'Segoe UI', sans-serif;
-    background-color: #ffffff;
-    /* 直接使用白色背景 */
+    padding: 0;
 }
 
-/* --- 主要容器 --- */
 .container {
-    padding: 16px;
-    box-sizing: border-box;
-    text-align: center;
+    background-color: #ffffff;
 }
 
-/* --- 標題 --- */
+.header {
+    background-color: #4A90E2;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
 .title {
-    font-size: 1.1rem;
-    /* 18px */
+    font-size: 16px;
     font-weight: 600;
-    color: #1c1e21;
-    margin: 0 0 16px 0;
+    color: #ffffff;
+    text-align: center;
+    margin: 0;
 }
 
-/* --- 控制行 --- */
-.control-row {
+.feature-list {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+}
+
+.feature-item,
+.feature-item-group {
+    padding: 12px 8px;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.feature-item-group:last-of-type,
+.feature-item:last-of-type {
+    border-bottom: none;
+}
+
+.feature-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #f0f2f5;
-    /* 淺灰色背景 */
-    border-radius: 10px;
-    padding: 8px 12px;
+    padding: 0;
+    /* Group handles padding */
+    border: none;
 }
 
-/* --- 狀態文字 --- */
-.status-text {
-    font-size: 0.9rem;
-    /* 14px */
-    font-weight: 600;
-    text-transform: uppercase;
-    transition: color 0.3s ease;
+
+.feature-info {
+    flex-grow: 1;
+    margin-right: 16px;
 }
 
-.status-text.on {
-    color: #007bff;
-    /* 開啟時的藍色 */
+.feature-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    margin: 0 0 4px 0;
 }
 
-.status-text.off {
-    color: #606770;
-    /* 關閉時的灰色 */
+.feature-desc {
+    font-size: 12px;
+    color: #777;
+    margin: 0;
 }
 
-/* --- 滑動開關 --- */
 .toggle-switch {
     position: relative;
     display: inline-block;
     width: 44px;
     height: 24px;
+    flex-shrink: 0;
 }
 
 .toggle-switch input {
@@ -76,10 +90,9 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ced4da;
-    /* 關閉時的背景色 */
+    background-color: #ccc;
+    transition: .4s;
     border-radius: 24px;
-    transition: background-color 0.4s;
 }
 
 .slider:before {
@@ -90,16 +103,61 @@ body {
     left: 3px;
     bottom: 3px;
     background-color: white;
+    transition: .4s;
     border-radius: 50%;
-    transition: transform 0.4s;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 input:checked+.slider {
-    background-color: #007bff;
-    /* 開啟時的背景色 */
+    background-color: #4A90E2;
 }
 
 input:checked+.slider:before {
     transform: translateX(20px);
+}
+
+/* 新增 YouTube 選項樣式 */
+.feature-options {
+    padding: 10px 0 4px 0;
+    display: flex;
+    gap: 16px;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: #555;
+    cursor: pointer;
+}
+
+.radio-label input {
+    margin-right: 6px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+
+/* 流量顯示區塊的樣式 */
+.data-usage-section {
+    padding: 12px 16px;
+    background-color: #f9f9f9;
+    border-top: 1px solid #e0e0e0;
+}
+
+.data-usage-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    margin: 0 0 4px 0;
+    text-align: center;
+}
+
+.data-usage-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: #4A90E2;
+    text-align: center;
+    margin: 0;
 }
