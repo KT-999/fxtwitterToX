@@ -1,61 +1,63 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <meta charset="utf-8">
-    <title>複合功能小幫手</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <title>功能面板</title>
     <link rel="stylesheet" href="popup.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
-
 <body>
+
     <div class="container">
-        <div class="header">
-            <h1 class="title">複合功能小幫手</h1>
-        </div>
-        <div class="feature-list" id="featureList">
-            <!-- FX/VX Twitter 功能 -->
-            <div class="feature-item">
-                <div class="feature-info">
-                    <h2 class="feature-title">FX/VX Twitter 轉址</h2>
-                    <p class="feature-desc">自動將 fxtwitter.com 等連結轉址並修正頁面連結。</p>
+        <header class="header">
+            <h1>功能面板</h1>
+        </header>
+
+        <div class="feature-list">
+            <!-- FX/VX Twitter 轉址功能 -->
+            <div class="feature-card">
+                <div class="feature-content">
+                    <span class="feature-title">FX/VX Twitter 轉址</span>
+                    <p class="feature-description">自動將 fxtwitter.com 和 vxtwitter.com 的連結轉換為 x.com。</p>
                 </div>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="toggle-fxtwitter">
-                    <span class="slider"></span>
-                </label>
+                <div class="feature-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-fxtwitter">
+                        <span class="slider"></span>
+                    </label>
+                </div>
             </div>
 
-            <!-- YouTube 功能 -->
-            <div class="feature-item-group">
-                <div class="feature-item">
-                    <div class="feature-info">
-                        <h2 class="feature-title">YouTube 純音訊模式</h2>
-                        <p class="feature-desc">觀看 YouTube 時，僅載入聲音以節省資源。</p>
-                    </div>
-                    <label class="toggle-switch">
+            <!-- YouTube 純音訊模式 -->
+            <div class="feature-card">
+                <div class="feature-content">
+                    <span class="feature-title">YouTube 純音訊模式</span>
+                    <p class="feature-description">在觀看 YouTube 影片時，只載入音訊以節省流量。</p>
+                </div>
+                <div class="feature-toggle">
+                    <label class="switch">
                         <input type="checkbox" id="toggle-youtubeAudioOnly">
                         <span class="slider"></span>
                     </label>
                 </div>
-                <!-- 新增：顯示模式選項 -->
-                <div class="feature-options hidden" id="youtube-display-options">
-                    <label class="radio-label">
-                        <input type="radio" name="youtube-display" value="text"> 顯示文字
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="youtube-display" value="thumbnail"> 顯示封面
-                    </label>
+                <div class="feature-options" id="youtube-options" style="display: none;">
+                    <button class="display-mode-btn" data-mode="text" id="display-mode-text">顯示文字</button>
+                    <button class="display-mode-btn" data-mode="thumbnail" id="display-mode-thumbnail">顯示封面</button>
                 </div>
             </div>
+            
         </div>
-        <!-- 流量顯示區塊 -->
-        <div class="data-usage-section">
-            <h2 class="data-usage-title">目前分頁已用流量</h2>
-            <p id="data-usage-display" class="data-usage-value">計算中...</p>
-        </div>
+
+        <!-- 流量統計 -->
+        <footer class="footer">
+            <div class="data-usage-card">
+                <div class="data-usage-title">目前分頁已用流量</div>
+                <div class="data-usage-value" id="data-usage-value">計算中...</div>
+            </div>
+        </footer>
     </div>
+
     <script src="popup.js"></script>
 </body>
-
 </html>
+

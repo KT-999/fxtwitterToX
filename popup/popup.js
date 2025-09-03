@@ -1,80 +1,82 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const featureToggles = document.querySelectorAll('.toggle-switch input[type="checkbox"]');
-    const youtubeToggle = document.getElementById('toggle-youtubeAudioOnly');
-    const youtubeOptions = document.getElementById('youtube-display-options');
-    const youtubeDisplayRadios = document.querySelectorAll('input[name="youtube-display"]');
-    const dataUsageDisplay = document.getElementById('data-usage-display');
+    const settings = {
+        'toggle-fxtwitter': 'fxtwitter',
+        'toggle-youtubeAudioOnly': 'youtubeAudioOnly'
+    };
 
-    function updateSetting(key, value) {
-        browser.runtime.sendMessage({ action: 'updateSetting', key, value });
-    }
-
-    function updateYoutubeOptionsVisibility() {
-        if (youtubeToggle.checked) {
-            youtubeOptions.classList.remove('hidden');
-        } else {
-            youtubeOptions.classList.add('hidden');
-        }
-    }
-
+    // 初始化 popup 介面
     browser.storage.local.get('featureSettings').then((result) => {
-        const settings = result.featureSettings || {};
-        featureToggles.forEach(toggle => {
-            const featureName = toggle.id.replace('toggle-', '');
-            toggle.checked = settings[featureName] === true;
-        });
-        const displayMode = settings.youtubeDisplayMode || 'text';
-        document.querySelector(`input[name="youtube-display"][value="${displayMode}"]`).checked = true;
-        updateYoutubeOptionsVisibility();
-    });
-
-    featureToggles.forEach(toggle => {
-        toggle.addEventListener('change', () => {
-            const featureName = toggle.id.replace('toggle-', '');
-            updateSetting(featureName, toggle.checked);
-        });
-    });
-
-    youtubeToggle.addEventListener('change', updateYoutubeOptionsVisibility);
-
-    youtubeDisplayRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            if (radio.checked) {
-                updateSetting('youtubeDisplayMode', radio.value);
+        const currentSettings = result.featureSettings || {};
+        for (const [id, key] of Object.entries(settings)) {
+            const toggle = document.getElementById(id);
+            if (toggle) {
+                toggle.checked = currentSettings[key] !== false; // 預設為 true
             }
-        });
+        }
+
+        // 特別處理 YouTube 顯示模式
+        const displayMode = currentSettings.youtubeDisplayMode || 'text';
+        const displayModeButton = document.getElementById(`display-mode-${displayMode}`);
+        if (displayModeButton) {
+            displayModeButton.classList.add('active');
+        }
+
+        // 根據 YouTube 純音訊模式的開關，決定是否顯示選項
+        const youtubeOptions = document.getElementById('youtube-options');
+        if (youtubeOptions) {
+            youtubeOptions.style.display = currentSettings.youtubeAudioOnly ? 'flex' : 'none';
+        }
     });
 
-    // --- 即時網路流量顯示 ---
-    function formatBytes(bytes, decimals = 2) {
-        if (!Number.isFinite(bytes) || bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-    }
-    
-    // 查詢目前的分頁 ID
-    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-        if (tabs && tabs.length > 0) {
-            const currentTabId = tabs[0].id;
-            
-            // 建立與背景腳本的長連線
-            const port = browser.runtime.connect({ name: 'data-usage-port' });
+    // 監聽所有開關的變動
+    for (const [id, key] of Object.entries(settings)) {
+        const toggle = document.getElementById(id);
+        if (toggle) {
+            toggle.addEventListener('change', () => {
+                const value = toggle.checked;
+                browser.runtime.sendMessage({ action: 'updateSetting', key: key, value: value });
 
-            // **第一件事：告訴背景腳本我們是誰**
-            port.postMessage({ action: 'register', tabId: currentTabId });
-
-            // 監聽來自背景腳本的流量更新訊息
-            port.onMessage.addListener((message) => {
-                if (message.action === 'updateUsage') {
-                    if (dataUsageDisplay) {
-                        dataUsageDisplay.textContent = formatBytes(message.usage);
+                // 如果是 YouTube 的開關，則顯示/隱藏其選項
+                if (key === 'youtubeAudioOnly') {
+                    const youtubeOptions = document.getElementById('youtube-options');
+                    if (youtubeOptions) {
+                        youtubeOptions.style.display = value ? 'flex' : 'none';
                     }
                 }
             });
         }
+    }
+
+    // 監聽 YouTube 顯示模式按鈕的點擊
+    const displayButtons = document.querySelectorAll('.display-mode-btn');
+    displayButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            displayButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            const mode = button.dataset.mode;
+            browser.runtime.sendMessage({ action: 'updateSetting', key: 'youtubeDisplayMode', value: mode });
+        });
     });
+
+    // --- 網路流量即時更新 ---
+    const dataUsageElement = document.getElementById('data-usage-value');
+    if (dataUsageElement) {
+        const port = browser.runtime.connect({ name: 'data_usage_port' });
+
+        // 告訴 background script 我們是哪個分頁
+        browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+            if (tabs[0]) {
+                port.postMessage({ action: 'register', tabId: tabs[0].id });
+            }
+        });
+
+        // 監聽來自 background script 的更新
+        port.onMessage.addListener((message) => {
+            if (message.action === 'dataUsageUpdate') {
+                const megabytes = (message.usage / (1024 * 1024)).toFixed(2);
+                dataUsageElement.textContent = `${megabytes} MB`;
+            }
+        });
+    }
 });
 

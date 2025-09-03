@@ -1,145 +1,144 @@
-// 預設的功能設定
+// 預設功能設定
 const defaultSettings = {
     fxtwitter: true,
     youtubeAudioOnly: false,
-    youtubeDisplayMode: 'text' // 'text' 或 'thumbnail'
+    youtubeDisplayMode: 'text' // 'text' or 'thumbnail'
 };
 
-let currentSettings = {};
-let tabDataUsage = {};
-let popupPorts = {}; // 儲存與 popup 的連線，以 tabId 為 key
-
-// 定義網路請求規則的 ID
+// 網路請求攔截規則的 ID
 const YOUTUBE_VIDEO_RULE_ID = 1;
 const YOUTUBE_STORYBOARD_RULE_ID = 2;
 
-// 更新 YouTube 純音訊模式的網路請求規則
-async function updateYoutubeAudioOnlyRules(enabled) {
+// 更新 YouTube 純音訊模式的攔截規則
+function updateYoutubeAudioOnlyRules(enabled) {
+    const rules = [{
+        id: YOUTUBE_VIDEO_RULE_ID,
+        priority: 1,
+        action: { type: 'block' },
+        condition: {
+            urlFilter: '*://*.googlevideo.com/videoplayback*',
+            resourceTypes: ['media']
+        }
+    }, {
+        id: YOUTUBE_STORYBOARD_RULE_ID,
+        priority: 1,
+        action: { type: 'block' },
+        condition: {
+            urlFilter: '*://i.ytimg.com/*/storyboard*',
+            resourceTypes: ['image']
+        }
+    }];
+
     if (enabled) {
+        // 新增規則以阻擋影片和預覽圖
         browser.declarativeNetRequest.updateDynamicRules({
-            addRules: [
-                { id: YOUTUBE_VIDEO_RULE_ID, priority: 1, action: { type: 'block' }, condition: { requestDomains: ["googlevideo.com"], regexFilter: 'mime=video', resourceTypes: ['media'] } },
-                { id: YOUTUBE_STORYBOARD_RULE_ID, priority: 1, action: { type: 'block' }, condition: { requestDomains: ["i.ytimg.com"], regexFilter: 'storyboard', resourceTypes: ['image'] } }
-            ],
-            removeRuleIds: [YOUTUBE_VIDEO_RULE_ID, YOUTUBE_STORYBOARD_RULE_ID]
+            addRules: rules
         });
     } else {
+        // 移除規則
         browser.declarativeNetRequest.updateDynamicRules({
             removeRuleIds: [YOUTUBE_VIDEO_RULE_ID, YOUTUBE_STORYBOARD_RULE_ID]
         });
     }
 }
 
-// 初始化：從 storage 讀取設定
-function initializeSettings() {
+// 附加元件安裝或更新時，初始化設定
+browser.runtime.onInstalled.addListener(() => {
     browser.storage.local.get('featureSettings').then((result) => {
-        currentSettings = Object.assign({}, defaultSettings, result.featureSettings);
-        browser.storage.local.set({ featureSettings: currentSettings });
-        updateYoutubeAudioOnlyRules(currentSettings.youtubeAudioOnly);
+        let settings = result.featureSettings;
+        if (!settings) {
+            settings = defaultSettings;
+            browser.storage.local.set({ featureSettings: settings });
+        }
+        updateYoutubeAudioOnlyRules(settings.youtubeAudioOnly);
     });
-}
+});
 
-// 流量監控
-browser.webRequest.onHeadersReceived.addListener(
+// 監聽來自 popup 的設定變更訊息
+browser.runtime.onMessage.addListener((message) => {
+    if (message.action === 'updateSetting') {
+        browser.storage.local.get('featureSettings').then((result) => {
+            let settings = result.featureSettings || defaultSettings;
+            settings[message.key] = message.value;
+            browser.storage.local.set({ featureSettings: settings }).then(() => {
+                // 如果是 YouTube 音訊模式的變更，則更新網路請求規則
+                if (message.key === 'youtubeAudioOnly') {
+                    updateYoutubeAudioOnlyRules(message.value);
+                }
+            });
+        });
+    }
+});
+
+// --- 網路流量監控 ---
+const dataUsageByTab = {};
+let activePorts = {};
+
+// 監聽網路請求完成事件
+browser.webRequest.onCompleted.addListener(
     (details) => {
-        if (details.tabId > 0 && details.responseHeaders) {
-            const contentLengthHeader = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length');
+        const tabId = details.tabId;
+        if (tabId > 0 && details.responseHeaders) {
+            const contentLengthHeader = details.responseHeaders.find(
+                (header) => header.name.toLowerCase() === 'content-length'
+            );
             if (contentLengthHeader && contentLengthHeader.value) {
-                const bytes = parseInt(contentLengthHeader.value, 10);
-                if (!isNaN(bytes)) {
-                    tabDataUsage[details.tabId] = (tabDataUsage[details.tabId] || 0) + bytes;
-                    // 如果有與此分頁對應的 popup 連線，立即傳送更新
-                    if (popupPorts[details.tabId]) {
-                        popupPorts[details.tabId].postMessage({
-                            action: 'updateUsage',
-                            usage: tabDataUsage[details.tabId]
+                const size = parseInt(contentLengthHeader.value, 10);
+                if (!isNaN(size)) {
+                    dataUsageByTab[tabId] = (dataUsageByTab[tabId] || 0) + size;
+                    // 如果有開啟的 popup 連線，即時推送更新
+                    if (activePorts[tabId]) {
+                        activePorts[tabId].postMessage({
+                            action: 'dataUsageUpdate',
+                            usage: dataUsageByTab[tabId]
                         });
                     }
                 }
             }
         }
-    },
-    { urls: ["<all_urls>"] },
-    ["responseHeaders"]
+    }, { urls: ['<all_urls>'] },
+    ['responseHeaders']
 );
 
-// 分頁事件監聽
+// 監聽分頁更新事件，重置流量計數
 browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.status === 'loading') {
-        tabDataUsage[tabId] = 0;
+        dataUsageByTab[tabId] = 0;
     }
 });
 
+// 監聽分頁關閉事件，清除資料
 browser.tabs.onRemoved.addListener((tabId) => {
-    delete tabDataUsage[tabId];
-    if (popupPorts[tabId]) {
-        delete popupPorts[tabId];
-    }
+    delete dataUsageByTab[tabId];
+    delete activePorts[tabId];
 });
 
-// 監聽來自 popup 的長連線
-browser.runtime.onConnect.addListener((port) => {
-    if (port.name === 'data-usage-port') {
-        let tabId = null;
 
-        const messageListener = (message) => {
-            // 等待 popup 傳送 "register" 訊息來註冊自己
+// 監聽來自 popup 的長期連線
+browser.runtime.onConnect.addListener((port) => {
+    if (port.name === 'data_usage_port') {
+        let tabId;
+
+        // 接收 popup 傳來的 tabId
+        port.onMessage.addListener((message) => {
             if (message.action === 'register' && message.tabId) {
                 tabId = message.tabId;
-                popupPorts[tabId] = port; // 將這個連線與 tabId 關聯起來
+                activePorts[tabId] = port;
 
-                // 註冊成功後，立即回傳目前的流量數據
+                // 立即傳送目前的流量數據
                 port.postMessage({
-                    action: 'updateUsage',
-                    usage: tabDataUsage[tabId] || 0
+                    action: 'dataUsageUpdate',
+                    usage: dataUsageByTab[tabId] || 0
                 });
             }
-        };
-        
-        port.onMessage.addListener(messageListener);
+        });
 
+        // 當連線中斷時
         port.onDisconnect.addListener(() => {
-            if (tabId !== null) {
-                delete popupPorts[tabId];
+            if (tabId) {
+                delete activePorts[tabId];
             }
-            port.onMessage.removeListener(messageListener); // 清理監聽器
         });
     }
 });
-
-
-// 監聽來自 popup 的一次性訊息
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'updateSetting') {
-        currentSettings[message.key] = message.value;
-        browser.storage.local.set({ featureSettings: currentSettings });
-    }
-    return true;
-});
-
-// 監聽 storage 的設定變更
-browser.storage.onChanged.addListener((changes) => {
-    if (changes.featureSettings) {
-        const newSettings = changes.featureSettings.newValue;
-        const oldSettings = changes.featureSettings.oldValue || {};
-        currentSettings = newSettings;
-        if (newSettings.youtubeAudioOnly !== oldSettings.youtubeAudioOnly) {
-            updateYoutubeAudioOnlyRules(newSettings.youtubeAudioOnly);
-        }
-    }
-});
-
-// FX/VX Twitter 網址導航功能
-browser.webNavigation.onBeforeNavigate.addListener(
-    (details) => {
-        if (currentSettings.fxtwitter && (details.url.includes("fxtwitter.com") || details.url.includes("vxtwitter.com"))) {
-            const newUrl = details.url.replace("fxtwitter.com", "x.com").replace("vxtwitter.com", "x.com");
-            browser.tabs.update(details.tabId, { url: newUrl });
-        }
-    },
-    { url: [{ hostContains: "fxtwitter.com" }, { hostContains: "vxtwitter.com" }] }
-);
-
-// 啟動附加元件時初始化
-initializeSettings();
 

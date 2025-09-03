@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "複合功能小幫手",
-  "version": "1.5",
-  "description": "整合多種自用功能的瀏覽器擴充套件。",
+  "name": "多功能網頁工具",
+  "version": "1.6",
+  "description": "提供多種網頁增強功能，例如網址重導向、YouTube 純音訊模式等。",
   "permissions": [
     "storage",
     "webNavigation",
@@ -11,12 +11,13 @@
     "tabs"
   ],
   "host_permissions": [
+    "*://fxtwitter.com/*",
+    "*://vxtwitter.com/*",
+    "*://*.youtube.com/*",
+    "*://*.googlevideo.com/*",
+    "*://*.ytimg.com/*",
     "<all_urls>"
   ],
-  "icons": {
-    "48": "icon/icon-48.png",
-    "128": "icon/icon-128.png"
-  },
   "background": {
     "scripts": [
       "background.js"
@@ -24,9 +25,14 @@
   },
   "action": {
     "default_icon": {
-      "48": "icon/icon-48.png"
+      "48": "icon/icon-48.png",
+      "128": "icon/icon-128.png"
     },
     "default_popup": "popup/popup.html"
+  },
+  "icons": {
+    "48": "icon/icon-48.png",
+    "128": "icon/icon-128.png"
   },
   "content_scripts": [
     {

@@ -28,51 +28,74 @@ function runFxTwitterLinkReplacer() {
 function runYoutubeAudioOnlyMode(settings) {
     if (!window.location.hostname.includes('youtube.com')) return;
 
-    // 注入 CSS 來直接隱藏所有種類的預覽播放器
     const styleId = 'audio-only-preview-blocker';
     if (!document.getElementById(styleId)) {
         const style = document.createElement('style');
         style.id = styleId;
-        // 新增了 animated-thumbnail-overlay-view-model 規則來處理您發現的最新預覽播放器
         style.textContent = `
-            /* 隱藏現代網格/列表檢視中的懸停播放器 */
-            ytd-video-preview #player-container {
-                display: none !important;
-            }
-            /* 隱藏用於側邊欄和舊版面配置的浮動影片預覽播放器 */
-            #video-preview {
-                display: none !important;
-            }
-            /* 隱藏推薦欄位和舊版面配置中的動畫縮圖播放器 */
-            animated-thumbnail-overlay-view-model {
+            ytd-video-preview #player-container,
+            #video-preview,
+            animated-thumbnail-overlay-view-model,
+            .yt-lockup-view-model__player-container {
                 display: none !important;
             }
         `;
         document.head.appendChild(style);
     }
 
-
-    // 處理主播放頁面的邏輯
     function modifyPlayer() {
         const playerContainer = document.querySelector('#movie_player');
         if (!playerContainer) return;
 
         const videoElement = playerContainer.querySelector('video');
-        if (videoElement) videoElement.remove();
+        if (videoElement) {
+            videoElement.style.display = 'none';
+        }
+
+        const existingOverlay = playerContainer.querySelector('.audio-only-overlay');
+        const videoIdMeta = document.querySelector('meta[itemprop="videoId"]');
+        if (existingOverlay && videoIdMeta && existingOverlay.dataset.videoId !== videoIdMeta.content) {
+            existingOverlay.remove();
+        }
 
         if (playerContainer.querySelector('.audio-only-overlay')) return;
 
         playerContainer.style.backgroundColor = 'black';
         const overlay = document.createElement('div');
         overlay.className = 'audio-only-overlay';
-        Object.assign(overlay.style, { position: 'absolute', top: '0', left: '0', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: 'black', zIndex: '10', pointerEvents: 'auto' });
+
+        if (videoIdMeta) {
+            overlay.dataset.videoId = videoIdMeta.content;
+        }
+
+        Object.assign(overlay.style, {
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'black',
+            zIndex: '10',
+            cursor: 'pointer' // 讓游標顯示為可點擊
+        });
+
+        // **新增**：為覆蓋層加入點擊事件
+        overlay.addEventListener('click', () => {
+            const playButton = document.querySelector('.ytp-play-button');
+            if (playButton) {
+                playButton.click();
+            }
+        });
 
         if (settings.youtubeDisplayMode === 'thumbnail') {
             const thumbnailUrl = document.querySelector('meta[property="og:image"]')?.content;
             if (thumbnailUrl) {
                 const img = document.createElement('img');
                 img.src = thumbnailUrl;
-                Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'contain' });
+                Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }); // 圖片本身不攔截點擊
                 overlay.appendChild(img);
             } else {
                 overlay.textContent = '🎧 純音訊模式已啟用 (找不到封面)';
