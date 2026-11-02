@@ -11,6 +11,7 @@
     <div class="container">
         <header class="header">
             <h1>功能面板</h1>
+            <span class="version-badge" id="extension-version">載入中...</span>
         </header>
 
         <div class="feature-list">
@@ -45,19 +46,57 @@
                     <button class="display-mode-btn" data-mode="thumbnail" id="display-mode-thumbnail">顯示封面</button>
                 </div>
             </div>
+
+            <!-- YouTube 每行影片數 -->
+            <div class="feature-card">
+                <div class="feature-content">
+                    <span class="feature-title">YouTube 每行影片數</span>
+                    <p class="feature-description">自訂 YouTube 首頁與頻道頁面每行顯示的影片數量。</p>
+                </div>
+                <div class="feature-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-youtubeCustomGrid">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="feature-options grid-options" id="youtube-grid-options" style="display: none;">
+                    <div class="options-label">每行顯示數量：</div>
+                    <div class="row-count-selector">
+                        <button class="row-count-btn" data-count="3">3</button>
+                        <button class="row-count-btn" data-count="4">4</button>
+                        <button class="row-count-btn" data-count="5">5</button>
+                        <button class="row-count-btn" data-count="6">6</button>
+                        <button class="row-count-btn" data-count="7">7</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- YouTube 直播觀看人數 -->
+            <div class="feature-card">
+                <div class="feature-content">
+                    <span class="feature-title">顯示直播觀看人數</span>
+                    <p class="feature-description">在直播影片縮圖右下角紅色「直播」標籤左邊顯示觀看人數。</p>
+                </div>
+                <div class="feature-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-youtubeShowLiveViewers">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
             
         </div>
 
-        <!-- 流量統計 -->
+        <!-- 流量統計與版號 -->
         <footer class="footer">
             <div class="data-usage-card">
                 <div class="data-usage-title">目前分頁已用流量</div>
                 <div class="data-usage-value" id="data-usage-value">計算中...</div>
             </div>
+            <div class="version-footer" id="version-footer">版本載入中...</div>
         </footer>
     </div>
 
     <script src="popup.js"></script>
 </body>
 </html>
-

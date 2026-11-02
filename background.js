@@ -2,7 +2,10 @@
 const defaultSettings = {
     fxtwitter: true,
     youtubeAudioOnly: false,
-    youtubeDisplayMode: 'text' // 'text' or 'thumbnail'
+    youtubeDisplayMode: 'text', // 'text' or 'thumbnail'
+    youtubeCustomGrid: false,
+    youtubeVideosPerRow: 5,
+    youtubeShowLiveViewers: false
 };
 
 // 網路請求攔截規則的 ID
@@ -45,11 +48,8 @@ function updateYoutubeAudioOnlyRules(enabled) {
 // 附加元件安裝或更新時，初始化設定
 browser.runtime.onInstalled.addListener(() => {
     browser.storage.local.get('featureSettings').then((result) => {
-        let settings = result.featureSettings;
-        if (!settings) {
-            settings = defaultSettings;
-            browser.storage.local.set({ featureSettings: settings });
-        }
+        let settings = Object.assign({}, defaultSettings, result.featureSettings || {});
+        browser.storage.local.set({ featureSettings: settings });
         updateYoutubeAudioOnlyRules(settings.youtubeAudioOnly);
     });
 });
@@ -58,7 +58,7 @@ browser.runtime.onInstalled.addListener(() => {
 browser.runtime.onMessage.addListener((message) => {
     if (message.action === 'updateSetting') {
         browser.storage.local.get('featureSettings').then((result) => {
-            let settings = result.featureSettings || defaultSettings;
+            let settings = Object.assign({}, defaultSettings, result.featureSettings || {});
             settings[message.key] = message.value;
             browser.storage.local.set({ featureSettings: settings }).then(() => {
                 // 如果是 YouTube 音訊模式的變更，則更新網路請求規則
@@ -141,4 +141,3 @@ browser.runtime.onConnect.addListener((port) => {
         });
     }
 });
-
