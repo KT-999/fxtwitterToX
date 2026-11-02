@@ -65,6 +65,16 @@ browser.runtime.onMessage.addListener((message) => {
                 if (message.key === 'youtubeAudioOnly') {
                     updateYoutubeAudioOnlyRules(message.value);
                 }
+
+                // 主動向所有分頁推播更新，確保 instant sync
+                browser.tabs.query({}).then((tabs) => {
+                    for (const tab of tabs) {
+                        browser.tabs.sendMessage(tab.id, {
+                            action: 'settingsUpdated',
+                            settings: settings
+                        }).catch(() => {});
+                    }
+                });
             });
         });
     }

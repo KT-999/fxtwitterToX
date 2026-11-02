@@ -29,11 +29,10 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const [id, key] of Object.entries(settings)) {
             const toggle = document.getElementById(id);
             if (toggle) {
-                // 如果是新功能，預設值處理
                 if (key === 'youtubeCustomGrid' || key === 'youtubeShowLiveViewers') {
                     toggle.checked = Boolean(currentSettings[key]);
                 } else {
-                    toggle.checked = currentSettings[key] !== false; // 預設為 true 或 false 依原本邏輯
+                    toggle.checked = currentSettings[key] !== false;
                 }
             }
         }
@@ -76,6 +75,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const value = toggle.checked;
                 browser.runtime.sendMessage({ action: 'updateSetting', key: key, value: value });
 
+                // 直接向當前分頁推播，保證毫秒級響應
+                browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+                    if (tabs[0]?.id) {
+                        browser.tabs.sendMessage(tabs[0].id, {
+                            action: 'settingDirectUpdate',
+                            key: key,
+                            value: value
+                        }).catch(() => {});
+                    }
+                });
+
                 // 如果是 YouTube 純音訊開關，則顯示/隱藏其選項
                 if (key === 'youtubeAudioOnly') {
                     const youtubeOptions = document.getElementById('youtube-options');
@@ -103,6 +113,16 @@ document.addEventListener('DOMContentLoaded', () => {
             button.classList.add('active');
             const count = parseInt(button.dataset.count, 10);
             browser.runtime.sendMessage({ action: 'updateSetting', key: 'youtubeVideosPerRow', value: count });
+
+            browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+                if (tabs[0]?.id) {
+                    browser.tabs.sendMessage(tabs[0].id, {
+                        action: 'settingDirectUpdate',
+                        key: 'youtubeVideosPerRow',
+                        value: count
+                    }).catch(() => {});
+                }
+            });
         });
     });
 
@@ -122,14 +142,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dataUsageElement) {
         const port = browser.runtime.connect({ name: 'data_usage_port' });
 
-        // 告訴 background script 我們是哪個分頁
         browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
             if (tabs[0]) {
                 port.postMessage({ action: 'register', tabId: tabs[0].id });
             }
         });
 
-        // 監聽來自 background script 的更新
         port.onMessage.addListener((message) => {
             if (message.action === 'dataUsageUpdate') {
                 const megabytes = (message.usage / (1024 * 1024)).toFixed(2);

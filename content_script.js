@@ -180,6 +180,7 @@ function updateYoutubeGrid(enabled, count) {
 // ================= YouTube 直播觀看人數徽章 =================
 const YT_LIVE_STYLE_ID = 'custom-yt-live-viewers-style';
 let liveViewersObserver = null;
+let liveViewersInterval = null;
 let isLiveViewersEnabled = false;
 
 function ensureLiveViewersStyle() {
@@ -187,20 +188,19 @@ function ensureLiveViewersStyle() {
         const style = document.createElement('style');
         style.id = YT_LIVE_STYLE_ID;
         style.textContent = `
-            /* 讓縮圖右下角的 badge 容器橫向排列 */
-            yt-thumbnail-overlay-badge-view-model,
-            .yt-thumbnail-overlay-badge-view-model-wiz--bottom-end,
-            ytd-thumbnail #overlays {
-                display: flex !important;
+            .custom-yt-live-row {
+                display: inline-flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
                 justify-content: flex-end !important;
+                pointer-events: none !important;
+                z-index: 20 !important;
             }
 
             .custom-yt-live-viewers-badge {
                 display: inline-flex !important;
                 align-items: center !important;
-                background-color: rgba(0, 0, 0, 0.75) !important;
+                background-color: rgba(0, 0, 0, 0.78) !important;
                 color: #ffffff !important;
                 font-size: 11px !important;
                 font-weight: 500 !important;
@@ -211,12 +211,10 @@ function ensureLiveViewersStyle() {
                 margin-right: 4px !important;
                 white-space: nowrap !important;
                 pointer-events: none !important;
-                z-index: 10 !important;
-                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+                z-index: 20 !important;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
                 backdrop-filter: blur(2px) !important;
-                max-width: 140px !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
+                letter-spacing: 0.3px !important;
                 vertical-align: middle !important;
             }
         `;
@@ -227,46 +225,39 @@ function ensureLiveViewersStyle() {
 function extractLiveViewerText(card) {
     if (!card) return null;
 
-    // 1. 優先在元數據相關元素中尋找
-    const candidateElements = card.querySelectorAll(`
-        #metadata-line span,
-        .yt-lockup-view-model-wiz__metadata span,
-        yt-content-metadata-view-model span,
-        span.inline-metadata-item,
-        span.yt-core-attributed-string,
-        .ytd-video-meta-block span
-    `);
+    const livePattern = /([\d.,\s]+[萬万KkMmBb]?\s*(?:人正在觀看|人在觀看|人が視聴中|watching|명\s*시청\s*중|personas\s*viendo|spectateurs))/i;
 
-    for (const el of candidateElements) {
-        const text = el.textContent.trim();
-        if (!text) continue;
+    // 優先在卡片中的文字節點搜尋
+    const elements = card.querySelectorAll('#metadata-line span, .inline-metadata-item, yt-content-metadata-view-model span, .yt-core-attributed-string, span, div');
+    for (const el of elements) {
+        if (el.children.length > 2) continue;
+        const txt = el.textContent.trim();
+        if (!txt) continue;
+
         if (
-            text.includes('正在觀看') ||
-            text.includes('人在觀看') ||
-            text.includes('人が視聴中') ||
-            /\bwatching\b/i.test(text) ||
-            text.includes('시청 중') ||
-            text.includes('viendo') ||
-            text.includes('spectateurs')
+            txt.includes('正在觀看') ||
+            txt.includes('人在觀看') ||
+            txt.includes('人が視聴中') ||
+            /\bwatching\b/i.test(txt) ||
+            txt.includes('시청 중') ||
+            txt.includes('viendo') ||
+            txt.includes('spectateurs')
         ) {
-            return text;
+            const m = txt.match(livePattern);
+            if (m) {
+                return m[1].replace(/\s+/g, ' ').trim();
+            }
+            if (txt.length < 25) {
+                return txt.replace(/\s+/g, ' ').trim();
+            }
         }
     }
 
-    // 2. 備用：卡片內葉子文字節點
-    const allNodes = card.querySelectorAll('*');
-    for (const node of allNodes) {
-        if (node.children.length === 0) {
-            const text = node.textContent.trim();
-            if (
-                text.includes('正在觀看') ||
-                text.includes('人が視聴中') ||
-                /^\s*[\d.,KkMm萬万]+\s*watching/i.test(text) ||
-                text.includes('시청 중')
-            ) {
-                return text;
-            }
-        }
+    // 備用：直接從整張卡片的文字提取
+    const cardText = card.textContent;
+    const match = cardText.match(livePattern);
+    if (match) {
+        return match[1].replace(/\s+/g, ' ').trim();
     }
 
     return null;
@@ -277,50 +268,92 @@ function processLiveBadges() {
 
     ensureLiveViewersStyle();
 
-    // 尋找所有直播 badge（涵蓋 Polymer 與 Wiz 組件）
-    const liveBadges = document.querySelectorAll(`
-        badge-shape.badge-shape-wiz--thumbnail-live,
-        .badge-shape-wiz--thumbnail-live,
-        ytd-thumbnail-overlay-time-status-renderer[overlay-style="LIVE"],
-        ytd-badge-supported-renderer [aria-label="LIVE"],
-        yt-badge-shape[aria-label="LIVE"]
+    // 抓取頁面上所有可能的影片卡片
+    const cards = document.querySelectorAll(`
+        ytd-rich-item-renderer,
+        ytd-video-renderer,
+        ytd-grid-video-renderer,
+        ytd-compact-video-renderer,
+        yt-lockup-view-model,
+        ytd-rich-grid-media
     `);
 
-    liveBadges.forEach(badge => {
-        // 找到所屬卡片容器
-        const card = badge.closest('ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, yt-lockup-view-model') 
-                  || badge.closest('ytd-thumbnail')?.closest('div, ytd-rich-grid-media')
-                  || badge.closest('ytd-thumbnail')?.parentElement;
-        if (!card) return;
+    cards.forEach(card => {
+        try {
+            const viewerText = extractLiveViewerText(card);
+            if (!viewerText) return;
 
-        const viewerCountText = extractLiveViewerText(card);
-        if (!viewerCountText) return;
+            // 尋找卡片內的縮圖容器
+            const thumbnail = card.querySelector(`
+                ytd-thumbnail,
+                a#thumbnail,
+                yt-thumbnail-view-model,
+                .yt-lockup-view-model-wiz__content-image,
+                #thumbnail
+            `);
+            if (!thumbnail) return;
 
-        // 決定插入位置（直播 badge 的左側）
-        let targetInsertBefore = badge;
-        const badgeViewModel = badge.closest('yt-thumbnail-badge-view-model');
-        if (badgeViewModel && badgeViewModel.parentElement) {
-            targetInsertBefore = badgeViewModel;
-        }
+            // 尋找縮圖內的紅色直播標籤 (LIVE / 直播)
+            let liveBadge = thumbnail.querySelector(`
+                badge-shape.badge-shape-wiz--thumbnail-live,
+                .badge-shape-wiz--thumbnail-live,
+                ytd-thumbnail-overlay-time-status-renderer[overlay-style="LIVE"],
+                [aria-label="LIVE"],
+                [aria-label="直播"],
+                [aria-label*="LIVE"],
+                [aria-label*="直播"]
+            `);
 
-        const parent = targetInsertBefore.parentElement;
-        if (!parent) return;
-
-        let existingBadge = parent.querySelector('.custom-yt-live-viewers-badge');
-        if (existingBadge) {
-            if (existingBadge.textContent !== viewerCountText) {
-                existingBadge.textContent = viewerCountText;
-                existingBadge.setAttribute('title', viewerCountText);
+            if (!liveBadge) {
+                const candidates = thumbnail.querySelectorAll('ytd-thumbnail-overlay-time-status-renderer, badge-shape, yt-badge-shape, div, span');
+                for (const el of candidates) {
+                    if (el.classList.contains('custom-yt-live-viewers-badge')) continue;
+                    const txt = el.textContent.trim();
+                    if ((txt === '直播' || txt === 'LIVE' || txt === 'ライブ' || txt.includes('直播') || txt.includes('LIVE')) && el.children.length <= 1) {
+                        liveBadge = el.closest('ytd-thumbnail-overlay-time-status-renderer, yt-thumbnail-badge-view-model, badge-shape') || el;
+                        break;
+                    }
+                }
             }
-            return;
+
+            // 檢查是否已存在人數徽章
+            let existingBadge = thumbnail.querySelector('.custom-yt-live-viewers-badge');
+            if (existingBadge) {
+                if (existingBadge.textContent !== viewerText) {
+                    existingBadge.textContent = viewerText;
+                    existingBadge.setAttribute('title', viewerText);
+                }
+                return;
+            }
+
+            // 建立人數徽章
+            const viewerBadge = document.createElement('div');
+            viewerBadge.className = 'custom-yt-live-viewers-badge';
+            viewerBadge.textContent = viewerText;
+            viewerBadge.setAttribute('title', viewerText);
+
+            if (liveBadge && liveBadge.parentNode) {
+                let row = liveBadge.closest('.custom-yt-live-row');
+                if (!row) {
+                    row = document.createElement('div');
+                    row.className = 'custom-yt-live-row';
+                    liveBadge.parentNode.insertBefore(row, liveBadge);
+                    row.appendChild(viewerBadge);
+                    row.appendChild(liveBadge);
+                } else {
+                    row.insertBefore(viewerBadge, liveBadge);
+                }
+            } else {
+                // 備用：若找不到 liveBadge 但卡片確定是直播，直接在縮圖右下角顯示
+                const overlays = thumbnail.querySelector('#overlays') || thumbnail;
+                viewerBadge.style.position = 'absolute';
+                viewerBadge.style.bottom = '4px';
+                viewerBadge.style.right = '4px';
+                overlays.appendChild(viewerBadge);
+            }
+        } catch (err) {
+            console.error('Error processing live badge:', err);
         }
-
-        const viewerBadge = document.createElement('div');
-        viewerBadge.className = 'custom-yt-live-viewers-badge';
-        viewerBadge.textContent = viewerCountText;
-        viewerBadge.setAttribute('title', viewerCountText);
-
-        parent.insertBefore(viewerBadge, targetInsertBefore);
     });
 }
 
@@ -333,7 +366,17 @@ function updateLiveViewersFeature(enabled) {
             liveViewersObserver.disconnect();
             liveViewersObserver = null;
         }
+        if (liveViewersInterval) {
+            clearInterval(liveViewersInterval);
+            liveViewersInterval = null;
+        }
         document.querySelectorAll('.custom-yt-live-viewers-badge').forEach(el => el.remove());
+        document.querySelectorAll('.custom-yt-live-row').forEach(row => {
+            while (row.firstChild) {
+                row.parentNode.insertBefore(row.firstChild, row);
+            }
+            row.remove();
+        });
         const style = document.getElementById(YT_LIVE_STYLE_ID);
         if (style) style.remove();
         return;
@@ -348,29 +391,43 @@ function updateLiveViewersFeature(enabled) {
             timer = setTimeout(() => {
                 timer = null;
                 processLiveBadges();
-            }, 250);
+            }, 200);
         });
         liveViewersObserver.observe(document.body, { childList: true, subtree: true });
         document.addEventListener('yt-navigate-finish', processLiveBadges);
+        window.addEventListener('scroll', () => {
+            if (timer) return;
+            timer = setTimeout(() => {
+                timer = null;
+                processLiveBadges();
+            }, 300);
+        }, { passive: true });
+    }
+
+    if (!liveViewersInterval) {
+        liveViewersInterval = setInterval(processLiveBadges, 1500);
     }
 }
 
 // ================= 設定套用與主進入點 =================
+let currentActiveSettings = {};
+
 function applySettings(settings) {
     if (!settings) return;
+    currentActiveSettings = Object.assign({}, currentActiveSettings, settings);
 
-    if (settings.fxtwitter) {
+    if (currentActiveSettings.fxtwitter) {
         runFxTwitterLinkReplacer();
     }
-    if (settings.youtubeAudioOnly) {
-        runYoutubeAudioOnlyMode(settings);
+    if (currentActiveSettings.youtubeAudioOnly) {
+        runYoutubeAudioOnlyMode(currentActiveSettings);
     }
 
     // YouTube 每行影片數
-    updateYoutubeGrid(settings.youtubeCustomGrid, settings.youtubeVideosPerRow);
+    updateYoutubeGrid(currentActiveSettings.youtubeCustomGrid, currentActiveSettings.youtubeVideosPerRow);
 
     // YouTube 直播觀看人數
-    updateLiveViewersFeature(settings.youtubeShowLiveViewers);
+    updateLiveViewersFeature(currentActiveSettings.youtubeShowLiveViewers);
 }
 
 function main() {
@@ -379,10 +436,21 @@ function main() {
         applySettings(settings);
     });
 
-    // 監聽來自 popup 的設定變動，達成即時反應不用刷新
+    // 監聽來自 storage 的變動
     browser.storage.onChanged.addListener((changes, area) => {
         if (area === 'local' && changes.featureSettings) {
             applySettings(changes.featureSettings.newValue);
+        }
+    });
+
+    // 監聽來自 background / popup 的直接訊息通知，達成雙保險即時反應
+    browser.runtime.onMessage.addListener((message) => {
+        if (message.action === 'settingsUpdated' && message.settings) {
+            applySettings(message.settings);
+        } else if (message.action === 'settingDirectUpdate') {
+            const update = {};
+            update[message.key] = message.value;
+            applySettings(update);
         }
     });
 }
